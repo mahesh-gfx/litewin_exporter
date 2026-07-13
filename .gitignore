@@ -1,3 +1,5 @@
 dist/
+build/
+*.o
 *.exe
 scribble/

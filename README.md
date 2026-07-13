@@ -49,3 +49,13 @@ make clean    # remove dist/
 
 The exporter.c still compiles.
 
+### Testing
+
+Unit-test with **[Unity](https://github.com/ThrowTheSwitch/Unity)**, under `tests/vendor/unity/`.
+
+```sh
+make -f Makefile.test unit       # unit tests
+make -f Makefile.test contract   # validate a captured /metrics sample's format
+make -f Makefile.test test       # unit + contract
+bash tests/smoke.sh              # run the exe under Wine and probe it
+```
