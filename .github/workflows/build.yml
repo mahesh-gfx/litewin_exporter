@@ -1,0 +1,24 @@
+name: build
+
+on:
+  push:
+    branches: [main, dev, testing]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MinGW-w64 cross-compilers
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64
+
+      - name: Build (both architectures, -Werror)
+        run: make
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: litewin_exporter
+          path: dist/*.exe
