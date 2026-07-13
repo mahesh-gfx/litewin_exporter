@@ -12,9 +12,9 @@
  *
  * Build (cross, from Linux):
  *   x86_64-w64-mingw32-gcc -O2 -s -static -D_WIN32_WINNT=0x0601 \
- *       -o litewin_exporter_amd64.exe litewin_exporter.c -lws2_32 -ladvapi32
+ *       -o litewin_exporter_amd64.exe exporter.c -lws2_32 -ladvapi32
  *   i686-w64-mingw32-gcc  -O2 -s -static -D_WIN32_WINNT=0x0601 \
- *       -o litewin_exporter_386.exe   litewin_exporter.c -lws2_32 -ladvapi32
+ *       -o litewin_exporter_386.exe   exporter.c -lws2_32 -ladvapi32
  */
 
  #ifndef _WIN32_WINNT
