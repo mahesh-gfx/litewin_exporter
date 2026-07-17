@@ -1,0 +1,55 @@
+# Release: build the exes, get them code-signed by SignPath Foundation,
+# and publish a signed bundle to the GitHub Release. Runs on tag push only
+# (build.yml handles every push/PR).
+
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MinGW-w64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 gcc-mingw-w64-i686
+
+      - name: Build (both architectures, -Werror)
+        run: make
+
+      - name: Upload unsigned exes
+        id: unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-exes
+          path: dist/*.exe
+
+      - name: Sign with SignPath
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: litewin_exporter
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: exes
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Checksums
+        run: cd signed && sha256sum *.exe > SHA256SUMS
+
+      - name: Publish signed bundle to the Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            signed/*.exe
+            signed/SHA256SUMS
