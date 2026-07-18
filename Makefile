@@ -15,4 +15,13 @@ dist/litewin_exporter_386.exe: $(SRC)
 clean:
 	rm -rf dist
 
-.PHONY: all clean
+# dev cycle: cross-compile both exes, then native unit tests.
+dev:
+	@$(MAKE) all
+	@$(MAKE) -f Makefile.test unit
+
+# Watch mode: re-runs `make dev` on save; spacebar forces a run, q quits.
+watch:
+	find src tests -name '*.c' -o -name '*.h' | entr -c $(MAKE) dev
+
+.PHONY: all clean dev watch
