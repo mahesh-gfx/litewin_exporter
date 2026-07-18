@@ -48,6 +48,11 @@ for i in $(seq 1 20); do
 done
 echo "  ok  20x GET /        -> all 200"
 
+# 3b. metrics endpoint (on the custom path) serves the first metric
+curl -s -m 5 "$BASE/probe" | grep -q '^process_start_time_seconds [0-9]' \
+    || fail "GET /probe did not expose process_start_time_seconds"
+echo "  ok  GET /probe       -> process_start_time_seconds"
+
 # 4. landing page reflects --telemetry.path
 curl -s -m 5 "$BASE/" | grep -q 'href="/probe"' \
     || fail "landing page does not reflect --telemetry.path /probe"

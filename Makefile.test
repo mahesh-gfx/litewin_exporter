@@ -13,7 +13,7 @@ UNITY   := tests/vendor/unity/unity.c
 BIN     := build/tests
 
 # Each test binary: tests/test_<mod>.c + src/<mod>.c
-UNIT_MODULES := config
+UNIT_MODULES := config textfmt
 
 .PHONY: test unit contract clean
 test: unit contract
