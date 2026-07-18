@@ -20,7 +20,7 @@ trap cleanup EXIT
 [ -f "$EXE" ] || fail "exe not found: $EXE"
 
 echo "Starting $EXE on :$PORT under Wine..."
-wine "$EXE" --web.listen-address ":$PORT" >/tmp/smoke_exporter.log 2>&1 &
+wine "$EXE" --web.listen-address ":$PORT" --telemetry.path /probe >/tmp/smoke_exporter.log 2>&1 &
 PID=$!
 
 # Wait until the server answers (up to ~30s), rather than a fixed sleep.
@@ -47,6 +47,22 @@ for i in $(seq 1 20); do
     [ "$code" = 200 ] || fail "request $i expected 200, got $code"
 done
 echo "  ok  20x GET /        -> all 200"
+
+# 4. landing page reflects --telemetry.path
+curl -s -m 5 "$BASE/" | grep -q 'href="/probe"' \
+    || fail "landing page does not reflect --telemetry.path /probe"
+echo "  ok  --telemetry.path reflected on landing page"
+
+# 5. --version prints the name and exits 0
+wine "$EXE" --version 2>/dev/null | grep -q litewin_exporter \
+    || fail "--version did not print the exporter name"
+echo "  ok  --version"
+
+# 6. bad flag exits 2
+wine "$EXE" --bogus >/dev/null 2>&1
+rc=$?
+[ "$rc" = 2 ] || fail "--bogus expected exit 2, got $rc"
+echo "  ok  --bogus          -> exit 2"
 
 echo "SMOKE PASS"
 cleanup

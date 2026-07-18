@@ -47,4 +47,4 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wine64
       - name: Smoke test (HTTP server)
-        run: bash tests/smoke.sh dist/litewin_exporter_amd64.exe 9182
+        run: bash tests/smoke.sh dist/litewin_exporter_amd64.exe 9183
