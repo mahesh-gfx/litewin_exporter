@@ -10,7 +10,7 @@
 static void send_all(SOCKET s, const char *p, size_t n)
 {
     while (n > 0) {
-        int w = send(s, p, (int)(n > 1 << 20 ? 1 << 20 : n), 0);
+        int w = send(s, p, (int)n, 0);
         if (w <= 0)
             return;
         p += w;

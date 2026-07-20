@@ -24,21 +24,13 @@ BUILD="${BUILD:-1}"
 
 cd "$(dirname "$0")/.."
 
-have_remote_rsync() { ssh "$REMOTE" 'command -v rsync' >/dev/null 2>&1; }
-
 sync() {
     ssh "$REMOTE" "mkdir -p '$RPATH'"
+    # tar over ssh: needs only tar+ssh on Windows (Git-Bash has no rsync).
     # dist/ is intentionally included (the exes the Windows box runs); .git and
     # native build artifacts are not.
-    if have_remote_rsync; then
-        rsync -az --delete \
-            --exclude '.git/' --exclude 'build/' --exclude '*.o' \
-            -e ssh ./ "$REMOTE:$RPATH/"
-    else
-        # Fallback: tar over ssh (no --delete). Needs only tar+ssh on Windows.
-        tar czf - --exclude .git --exclude build --exclude '*.o' . \
-            | ssh "$REMOTE" "tar xzf - -C '$RPATH'"
-    fi
+    tar czf - --exclude .git --exclude build --exclude '*.o' . \
+        | ssh "$REMOTE" "tar xzf - -C '$RPATH'"
 }
 
 remote_smoke() {
