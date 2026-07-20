@@ -5,13 +5,19 @@
 
 #ifdef _WIN32
 #include "collectors/cpu.h"
+#include "collectors/logical_disk.h"
 #include "collectors/memory.h"
+#include "collectors/net.h"
+#include "collectors/system.h"
 
 /* Built-in collectors. init is optional (NULL). Windows only: the collect
  * functions call windows.h, so native builds (unit tests) see an empty set. */
 static collector_t g_collectors[] = {
     { "cpu", cpu_init, collect_cpu, 0 },
+    { "logical_disk", logical_disk_init, collect_logical_disk, 0 },
     { "memory", NULL, collect_memory, 0 },
+    { "net", net_init, collect_net, 0 },
+    { "system", system_init, collect_system, 0 },
 };
 
 collector_t *registry_collectors(size_t *n)

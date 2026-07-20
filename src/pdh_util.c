@@ -54,6 +54,21 @@ void pdh_collect(void)
         PdhCollectQueryData(g_query);
 }
 
+int pdh_raw(void *counter, long long *out)
+{
+    PDH_HCOUNTER c = (PDH_HCOUNTER)counter;
+    DWORD type;
+    PDH_RAW_COUNTER rc;
+    if (!c)
+        return 0;
+    if (PdhGetRawCounterValue(c, &type, &rc) != 0)
+        return 0;
+    if (rc.CStatus != PDH_CSTATUS_OK_C && rc.CStatus != PDH_CSTATUS_NEWDATA)
+        return 0;
+    *out = (long long)rc.FirstValue;
+    return 1;
+}
+
 int pdh_raw_array(void *counter, pdh_inst_cb cb, void *ctx)
 {
     PDH_HCOUNTER c = (PDH_HCOUNTER)counter;
