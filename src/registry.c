@@ -4,11 +4,13 @@
 #include <string.h>
 
 #ifdef _WIN32
+#include "collectors/cpu.h"
 #include "collectors/memory.h"
 
 /* Built-in collectors. init is optional (NULL). Windows only: the collect
  * functions call windows.h, so native builds (unit tests) see an empty set. */
 static collector_t g_collectors[] = {
+    { "cpu", cpu_init, collect_cpu, 0 },
     { "memory", NULL, collect_memory, 0 },
 };
 

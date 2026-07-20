@@ -5,6 +5,7 @@
 #include "config.h"
 #include "http.h"
 #include "log.h"
+#include "pdh_util.h"
 #include "registry.h"
 #include "textfmt.h"
 #include "version.h"
@@ -21,6 +22,9 @@ static char *metrics_body(void)
     buf_t b;
 
     buf_init(&b);
+
+    /* One PDH sample per scrape feeds all PDH-backed collectors (cpu, ...). */
+    pdh_collect();
 
     /* Run enabled collectors first (they append their own families), then the
      * collector_success meta family so it groups at the bottom. */
@@ -72,7 +76,7 @@ int main(int argc, char **argv)
 {
     unsigned long bind_addr = 0;
     collector_t *cols;
-    size_t n;
+    size_t n, n_i;
     char unknown[64];
 
     switch (config_parse(&g_cfg, argc, argv)) {
@@ -94,6 +98,13 @@ int main(int argc, char **argv)
         fprintf(stderr, "run with --collectors.print to list the available collectors\n");
         return 2;
     }
+
+    /* One-time per-collector startup (e.g. cpu opens the PDH query + counters);
+     * then prime PDH so the first scrape already has data. */
+    for (n_i = 0; n_i < n; n_i++)
+        if (cols[n_i].enabled && cols[n_i].init && !cols[n_i].init())
+            log_msg("warning: collector %s init failed", cols[n_i].name);
+    pdh_collect();
 
     g_start_time = time(NULL);
     memcpy(&bind_addr, g_cfg.bind_ip, 4); /* already network byte order */

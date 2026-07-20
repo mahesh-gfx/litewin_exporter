@@ -1,7 +1,7 @@
 CC64=x86_64-w64-mingw32-gcc
 CC32=i686-w64-mingw32-gcc
 CFLAGS=-O2 -s -static -Wall -Wextra -Werror -D_WIN32_WINNT=0x0601 -Isrc
-LIBS=-lws2_32 -ladvapi32
+LIBS=-lws2_32 -ladvapi32 -lpdh
 SRC=$(wildcard src/*.c src/collectors/*.c)
 
 all: dist/litewin_exporter_amd64.exe dist/litewin_exporter_386.exe

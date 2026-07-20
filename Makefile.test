@@ -15,7 +15,7 @@ BIN     := build/tests
 # Each test binary: tests/test_<mod>.c + the module's source (src/ or
 # src/collectors/). Exposition-format tests also need textfmt.c linked; it is
 # added automatically for every module except textfmt itself.
-UNIT_MODULES := config textfmt registry memory
+UNIT_MODULES := config textfmt registry memory cpu
 
 .PHONY: test unit contract clean
 test: unit contract
