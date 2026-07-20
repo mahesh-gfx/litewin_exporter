@@ -6,9 +6,11 @@
 #define DEFAULT_PORT 9182
 
 typedef struct {
-    int port;                 /* listen port (default 9182) */
-    unsigned char bind_ip[4]; /* IPv4, network byte order; all-zero = all interfaces */
-    char metrics_path[128];   /* URL path for metrics (default "/metrics") */
+    int port;                   /* listen port (default 9182) */
+    unsigned char bind_ip[4];   /* IPv4, network byte order; all-zero = all interfaces */
+    char metrics_path[128];     /* URL path for metrics (default "/metrics") */
+    char collectors_enabled[512]; /* raw --collectors.enabled list; "" = all */
+    int print_collectors;       /* --collectors.print given: list collectors, exit 0 */
 } config_t;
 
 typedef enum {

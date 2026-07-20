@@ -12,6 +12,9 @@ static void usage(void)
            "                              \"%d\" or \"192.168.1.10:%d\" (default \":%d\")\n"
            "  --telemetry.addr ADDR       alias of --web.listen-address (windows_exporter compat)\n"
            "  --telemetry.path PATH       URL path for metrics (default \"/metrics\")\n"
+           "  --collectors.enabled LIST   comma-separated collectors to enable; the token\n"
+           "                              [defaults] expands to all of them (default: all)\n"
+           "  --collectors.print          print available collectors and exit\n"
            "  --version                   print version and exit\n"
            "  --help                      this text\n"
            "\nAll flags also accept the --flag=value form.\n",
@@ -125,6 +128,18 @@ config_result_t config_parse(config_t *cfg, int argc, char **argv)
                 return CONFIG_ERR;
             }
             strcpy(cfg->metrics_path, v);
+        } else if (flag_is(a, "--collectors.enabled", &eq)) {
+            const char *v = flag_value(argc, argv, &i, eq);
+            if (!v)
+                return CONFIG_ERR;
+            if (strlen(v) >= sizeof cfg->collectors_enabled) {
+                fprintf(stderr, "error: --collectors.enabled list too long\n");
+                return CONFIG_ERR;
+            }
+            strcpy(cfg->collectors_enabled, v);
+        } else if (strcmp(a, "--collectors.print") == 0) {
+            cfg->print_collectors = 1;
+            return CONFIG_OK; /* main lists the registry and exits 0 */
         } else if (strcmp(a, "--version") == 0) {
             printf("%s %s\n", LITEWIN_NAME, LITEWIN_VERSION);
             return CONFIG_EXIT0;

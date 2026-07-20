@@ -69,6 +69,20 @@ rc=$?
 [ "$rc" = 2 ] || fail "--bogus expected exit 2, got $rc"
 echo "  ok  --bogus          -> exit 2"
 
+# 7. unknown collector exits 2 and points at --collectors.print
+wine "$EXE" --collectors.enabled bogus >/tmp/smoke_col.log 2>&1
+rc=$?
+[ "$rc" = 2 ] || fail "--collectors.enabled bogus expected exit 2, got $rc"
+grep -q -- '--collectors.print' /tmp/smoke_col.log \
+    || fail "unknown-collector error did not point at --collectors.print"
+echo "  ok  bad collector    -> exit 2"
+
+# 8. --collectors.print exits 0
+wine "$EXE" --collectors.print >/dev/null 2>&1
+rc=$?
+[ "$rc" = 0 ] || fail "--collectors.print expected exit 0, got $rc"
+echo "  ok  --collectors.print -> exit 0"
+
 echo "SMOKE PASS"
 cleanup
 trap - EXIT
