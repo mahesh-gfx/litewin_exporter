@@ -48,10 +48,15 @@ for i in $(seq 1 20); do
 done
 echo "  ok  20x GET /        -> all 200"
 
-# 3b. metrics endpoint (on the custom path) serves the first metric
+# 3b. metrics endpoint (on the custom path) serves the meta metric
 curl -s -m 5 "$BASE/probe" | grep -q '^process_start_time_seconds [0-9]' \
     || fail "GET /probe did not expose process_start_time_seconds"
 echo "  ok  GET /probe       -> process_start_time_seconds"
+
+# 3c. memory collector (enabled by default) emits its family with a value > 0
+curl -s -m 5 "$BASE/probe" | grep -Eq '^windows_memory_physical_total_bytes [1-9][0-9]*$' \
+    || fail "GET /probe did not expose a positive windows_memory_physical_total_bytes"
+echo "  ok  GET /probe       -> windows_memory_physical_total_bytes"
 
 # 4. landing page reflects --telemetry.path
 curl -s -m 5 "$BASE/" | grep -q 'href="/probe"' \

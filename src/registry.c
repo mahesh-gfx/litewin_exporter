@@ -3,13 +3,27 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include "collectors/memory.h"
+
+/* Built-in collectors. init is optional (NULL). Windows only: the collect
+ * functions call windows.h, so native builds (unit tests) see an empty set. */
+static collector_t g_collectors[] = {
+    { "memory", NULL, collect_memory, 0 },
+};
+
 collector_t *registry_collectors(size_t *n)
 {
-    /* No built-in collectors yet;
-     * Callers already loop 0..n, so NULL/0 is safe. */
-    *n = 0;
-    return NULL;
+    *n = sizeof g_collectors / sizeof g_collectors[0];
+    return g_collectors;
 }
+#else
+collector_t *registry_collectors(size_t *n)
+{
+    *n = 0;
+    return NULL; /* no windows.h collectors when built natively */
+}
+#endif
 
 int collectors_resolve(collector_t *cols, size_t n, const char *list,
                        char *unknown, size_t unknown_sz)

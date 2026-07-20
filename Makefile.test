@@ -12,8 +12,10 @@ CFLAGS  := -std=c99 -Wall -Wextra -Werror -Isrc -Itests/vendor/unity
 UNITY   := tests/vendor/unity/unity.c
 BIN     := build/tests
 
-# Each test binary: tests/test_<mod>.c + src/<mod>.c
-UNIT_MODULES := config textfmt registry
+# Each test binary: tests/test_<mod>.c + the module's source (src/ or
+# src/collectors/). Exposition-format tests also need textfmt.c linked; it is
+# added automatically for every module except textfmt itself.
+UNIT_MODULES := config textfmt registry memory
 
 .PHONY: test unit contract clean
 test: unit contract
@@ -22,7 +24,9 @@ unit:
 	@mkdir -p $(BIN)
 	@set -e; for m in $(UNIT_MODULES); do \
 		echo "== unit: $$m =="; \
-		$(CC) $(CFLAGS) tests/test_$$m.c src/$$m.c $(UNITY) -o $(BIN)/test_$$m; \
+		src=$$(ls src/$$m.c src/collectors/$$m.c 2>/dev/null | head -1); \
+		[ "$$m" = textfmt ] || src="$$src src/textfmt.c"; \
+		$(CC) $(CFLAGS) tests/test_$$m.c $$src $(UNITY) -o $(BIN)/test_$$m; \
 		$(BIN)/test_$$m; \
 	done
 
