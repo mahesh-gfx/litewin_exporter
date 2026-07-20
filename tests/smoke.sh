@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# smoke.sh - integration test: run the Windows exe under Wine and probe
-# the HTTP server. 
+# smoke.sh - integration test: run the exe and probe the HTTP server.
+#
+# On real Windows (Git-Bash) the exe runs natively. Elsewhere it runs under
+# Wine. Override with RUNNER=... (RUNNER="" forces native).
 #
 # Usage: tests/smoke.sh [exe] [port]
 # Exit 0 if all checks pass, non-zero on the first failure.
@@ -10,17 +12,32 @@ EXE="${1:-dist/litewin_exporter_amd64.exe}"
 PORT="${2:-9182}"
 BASE="http://127.0.0.1:${PORT}"
 
+if [ -z "${RUNNER+set}" ]; then
+    command -v wine >/dev/null 2>&1 && RUNNER="wine" || RUNNER=""
+fi
+
+# Launch the exe with MSYS path-conversion disabled *for this command only*, so
+# args like `--telemetry.path /probe` reach a native Windows exe unmangled.
+# Scoped here (not global) so curl's `-o /dev/null` keeps working.
+run_exe() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' $RUNNER "$EXE" "$@"; }
 export WINEDEBUG="${WINEDEBUG:--all}"
 export WINEPREFIX="${WINEPREFIX:-/tmp/wineprefix}"
 
 fail() { echo "SMOKE FAIL: $*" >&2; cleanup; exit 1; }
-cleanup() { [ -n "${PID:-}" ] && kill "$PID" 2>/dev/null; wineserver -k 2>/dev/null; true; }
+cleanup() {
+    [ -n "${PID:-}" ] && kill "$PID" 2>/dev/null
+    # MSYS `kill` can't stop a native Windows exe; taskkill can. Without this the
+    # exe lingers, holds the ssh channel open, and the remote invocation hangs.
+    command -v taskkill >/dev/null 2>&1 && taskkill //F //IM "$(basename "$EXE")" >/dev/null 2>&1
+    command -v wineserver >/dev/null 2>&1 && wineserver -k 2>/dev/null
+    true
+}
 trap cleanup EXIT
 
 [ -f "$EXE" ] || fail "exe not found: $EXE"
 
-echo "Starting $EXE on :$PORT under Wine..."
-wine "$EXE" --web.listen-address ":$PORT" --telemetry.path /probe >/tmp/smoke_exporter.log 2>&1 &
+echo "Starting $EXE on :$PORT (${RUNNER:-native})..."
+run_exe --web.listen-address ":$PORT" --telemetry.path /probe >/tmp/smoke_exporter.log 2>&1 </dev/null &
 PID=$!
 
 # Wait until the server answers (up to ~30s), rather than a fixed sleep.
@@ -64,18 +81,18 @@ curl -s -m 5 "$BASE/" | grep -q 'href="/probe"' \
 echo "  ok  --telemetry.path reflected on landing page"
 
 # 5. --version prints the name and exits 0
-wine "$EXE" --version 2>/dev/null | grep -q litewin_exporter \
+run_exe --version 2>/dev/null | grep -q litewin_exporter \
     || fail "--version did not print the exporter name"
 echo "  ok  --version"
 
 # 6. bad flag exits 2
-wine "$EXE" --bogus >/dev/null 2>&1
+run_exe --bogus >/dev/null 2>&1
 rc=$?
 [ "$rc" = 2 ] || fail "--bogus expected exit 2, got $rc"
 echo "  ok  --bogus          -> exit 2"
 
 # 7. unknown collector exits 2 and points at --collectors.print
-wine "$EXE" --collectors.enabled bogus >/tmp/smoke_col.log 2>&1
+run_exe --collectors.enabled bogus >/tmp/smoke_col.log 2>&1
 rc=$?
 [ "$rc" = 2 ] || fail "--collectors.enabled bogus expected exit 2, got $rc"
 grep -q -- '--collectors.print' /tmp/smoke_col.log \
@@ -83,7 +100,7 @@ grep -q -- '--collectors.print' /tmp/smoke_col.log \
 echo "  ok  bad collector    -> exit 2"
 
 # 8. --collectors.print exits 0
-wine "$EXE" --collectors.print >/dev/null 2>&1
+run_exe --collectors.print >/dev/null 2>&1
 rc=$?
 [ "$rc" = 0 ] || fail "--collectors.print expected exit 0, got $rc"
 echo "  ok  --collectors.print -> exit 0"
