@@ -1,6 +1,10 @@
-# Release: build the exes, get them code-signed by SignPath Foundation,
-# and publish a signed bundle to the GitHub Release. Runs on tag push only
-# (build.yml handles every push/PR).
+# Release: build the exes, (optionally) code-sign them, and publish a zipped
+# bundle to the GitHub Release. Runs on tag push only (build.yml handles every
+# push/PR).
+#
+# Signing is stubbed until SignPath is configured (TASK-9): the sign step is
+# skipped unless the SIGNPATH_ORGANIZATION_ID repo variable is set, so tagging
+# produces a working (unsigned) release today and a signed one once TASK-9 lands.
 
 name: release
 
@@ -25,14 +29,17 @@ jobs:
       - name: Build (both architectures, -Werror)
         run: make
 
+      # --- optional signing (no-op until TASK-9 sets SIGNPATH_ORGANIZATION_ID) ---
       - name: Upload unsigned exes
         id: unsigned
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
         uses: actions/upload-artifact@v4
         with:
           name: unsigned-exes
           path: dist/*.exe
 
       - name: Sign with SignPath
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -44,12 +51,27 @@ jobs:
           wait-for-completion: true
           output-artifact-directory: signed
 
-      - name: Checksums
-        run: cd signed && sha256sum *.exe > SHA256SUMS
+      # --- assemble the release bundle -----------------------------------------
+      - name: Assemble bundle (exes + installers + README + SHA256SUMS)
+        run: |
+          set -e
+          # Use signed exes if signing ran, otherwise the freshly built ones.
+          SRC=dist
+          [ -d signed ] && SRC=signed
+          BUNDLE="litewin_exporter-${GITHUB_REF_NAME}"
+          mkdir -p "$BUNDLE"
+          cp "$SRC"/litewin_exporter_amd64.exe "$SRC"/litewin_exporter_386.exe "$BUNDLE"/
+          cp packaging/install.bat packaging/uninstall.bat packaging/install-litewin.ps1 "$BUNDLE"/
+          cp README.md "$BUNDLE"/
+          ( cd "$BUNDLE" && sha256sum *.exe > SHA256SUMS )
+          # A copy of the checksums outside the zip, for a quick pre-download check.
+          cp "$BUNDLE"/SHA256SUMS SHA256SUMS
+          zip -r "${BUNDLE}.zip" "$BUNDLE"
+          ls -l "${BUNDLE}.zip" SHA256SUMS
 
-      - name: Publish signed bundle to the Release
+      - name: Publish bundle to the Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            signed/*.exe
-            signed/SHA256SUMS
+            litewin_exporter-${{ github.ref_name }}.zip
+            SHA256SUMS

@@ -19,6 +19,73 @@ Lightweight Windows exporter built using C for prometheus
 4. Drop-in replacement for windows_exporter
 5. Configurable, just like windows_exporter
 
+## Installation (Windows)
+
+The release bundle (`litewin_exporter-vX.Y.Z.zip`) contains both architecture
+exes and the installer scripts. Everything below must run **elevated** (an
+Administrator `cmd`/PowerShell).
+
+### Single host — `install.bat`
+
+From the unzipped bundle:
+
+```bat
+install.bat                 :: install as a service on the default port (9182)
+install.bat 9100            :: install on a custom port
+install.bat 9100 /defender  :: also add a Windows Defender exclusion for the exe
+```
+
+`install.bat` arch-detects, copies the right exe to
+`%ProgramFiles%\litewin_exporter\litewin_exporter.exe`, creates the
+`litewin_exporter` service with `start= auto`, opens the metrics port in the
+firewall, and starts it. It is idempotent — re-running upgrades an existing
+install in place.
+
+```bat
+uninstall.bat               :: stop + delete service, remove firewall rule,
+                            :: Defender exclusion, and the install directory
+```
+
+### Fleet install / upgrade — `install-litewin.ps1`
+
+A PowerShell 2.0+ script (works on Windows 7 / Server 2008 R2 and later) that
+downloads a versioned bundle from your fileserver, verifies its checksum, runs
+`install.bat`, and scopes the firewall rule to your Prometheus scraper(s).
+Upgrading the fleet is just bumping `-LitewinVersion`.
+
+```powershell
+# First install: allow scraper 10.20.30.50, verify the .sha256 sidecar
+powershell -ExecutionPolicy Bypass -File install-litewin.ps1 `
+    -ScraperIPs 10.20.30.50 -LitewinVersion 0.1.0 -VerifyChecksum
+
+# Later, upgrade the whole fleet: identical command, bumped version
+powershell -ExecutionPolicy Bypass -File install-litewin.ps1 `
+    -ScraperIPs 10.20.30.50 -LitewinVersion 0.2.0 -VerifyChecksum
+```
+
+Set `-LitewinBaseUrl` (once, or edit its default at the top of the script) to
+your release directory; the zip URL is `{BaseUrl}/litewin_exporter-v{Version}.zip`.
+Re-running with an unchanged version is a no-op (use `-Force` to reinstall);
+firewall rules are always reconciled. See the script's comment header for all
+parameters (`-LitewinZipPath`, `-LitewinSha256`, `-AllowPing`, ...).
+
+### Manual service control (`sc`)
+
+If you'd rather not use the installers, the exe runs as a service whenever the
+SCM launches it — no install flag needed. Create it yourself (note the required
+space after each `=`):
+
+```bat
+sc create litewin_exporter binPath= "\"C:\Path\to\litewin_exporter.exe\" --web.listen-address :9182" start= auto
+sc start   litewin_exporter
+sc query   litewin_exporter
+sc stop    litewin_exporter
+sc delete  litewin_exporter
+```
+
+Run the same exe without the SCM (from a console) and it serves in the
+foreground instead — handy for a quick check: `litewin_exporter.exe --web.listen-address :9182`.
+
 ## Development
 
 Being rebuilt from the single-file reference (`exporter.c`)`.`
@@ -87,6 +154,6 @@ public key authorised (for an admin account, in
 (supplies `bash`, `tar`, `curl`). Define the `litewin-win-dev` host in
 `~/.ssh/config` (or set `REMOTE`).
 
-> The HTTP server is single-threaded (connection-per-request, no read timeout),
-> so a browser opening several connections at once can wedge it. `curl` is
-> immune; use it, or refresh sparingly, until the `recv` timeout hardening lands.
+> The HTTP server is single-threaded (connection-per-request). Accepted sockets
+> carry recv/send timeouts, so a slow or half-open client trips the timeout and
+> the accept loop continues rather than wedging.

@@ -12,6 +12,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Unit tests
         run: make -f Makefile.test unit
+      - name: Install prometheus_client (contract validator)
+        run: pip install prometheus_client
+      - name: Contract test (validates the committed /metrics fixture, if present)
+        run: make -f Makefile.test contract
 
   # build both target architectures
   build:
@@ -48,3 +52,31 @@ jobs:
           sudo apt-get install -y wine64
       - name: Smoke test (HTTP server)
         run: bash tests/smoke.sh dist/litewin_exporter_amd64.exe 9183
+
+  # native PDH smoke: run the exe on a real Windows runner so the PDH-backed
+  # collectors (cpu, logical_disk, net, system) are actually exercised.
+  smoke-windows:
+    runs-on: windows-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: exes
+          path: dist
+      - name: Native smoke test (PDH collectors) + capture contract fixture
+        shell: bash
+        env:
+          RUNNER: ""     # force native execution; smoke.sh skips Wine detection
+          SAVE_SCRAPE: tests/fixtures/metrics_sample.txt
+        run: bash tests/smoke.sh dist/litewin_exporter_amd64.exe 9183
+      - name: Validate captured scrape (make contract)
+        shell: bash
+        run: |
+          pip install prometheus_client
+          make -f Makefile.test contract
+      - name: Upload contract fixture (commit this as tests/fixtures/metrics_sample.txt)
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics-fixture
+          path: tests/fixtures/metrics_sample.txt

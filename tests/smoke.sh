@@ -75,6 +75,17 @@ curl -s -m 5 "$BASE/probe" | grep -Eq '^windows_memory_physical_total_bytes [1-9
     || fail "GET /probe did not expose a positive windows_memory_physical_total_bytes"
 echo "  ok  GET /probe       -> windows_memory_physical_total_bytes"
 
+# 3d. native only: PDH-backed collectors must report success on real Windows.
+# Wine can't drive PDH, so skip this assertion unless running natively (RUNNER="").
+if [ -z "$RUNNER" ]; then
+    metrics=$(curl -s -m 5 "$BASE/probe")
+    for col in cpu logical_disk net system; do
+        echo "$metrics" | grep -q "^windows_exporter_collector_success{collector=\"$col\"} 1$" \
+            || fail "collector_success{$col} != 1 (see /tmp/smoke_exporter.log)"
+    done
+    echo "  ok  collector_success{cpu,logical_disk,net,system} = 1"
+fi
+
 # 4. landing page reflects --telemetry.path
 curl -s -m 5 "$BASE/" | grep -q 'href="/probe"' \
     || fail "landing page does not reflect --telemetry.path /probe"
@@ -104,6 +115,13 @@ run_exe --collectors.print >/dev/null 2>&1
 rc=$?
 [ "$rc" = 0 ] || fail "--collectors.print expected exit 0, got $rc"
 echo "  ok  --collectors.print -> exit 0"
+
+# Optional: save a full scrape for the contract fixture (SAVE_SCRAPE=path).
+if [ -n "${SAVE_SCRAPE:-}" ]; then
+    curl -s -m 5 "$BASE/probe" > "$SAVE_SCRAPE" \
+        || fail "failed to save scrape to $SAVE_SCRAPE"
+    echo "  ok  saved scrape       -> $SAVE_SCRAPE"
+fi
 
 echo "SMOKE PASS"
 cleanup
