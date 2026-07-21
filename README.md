@@ -88,8 +88,6 @@ foreground instead — handy for a quick check: `litewin_exporter.exe --web.list
 
 ## Development
 
-Being rebuilt from the single-file reference (`exporter.c`)`.`
-
 ### Toolchain
 
 MinGW-w64 GCC (both architectures), plus Wine to run the `.exe` on the build
@@ -113,8 +111,6 @@ The Makefile needs `x86_64-w64-mingw32-gcc` and `i686-w64-mingw32-gcc` on
 make          # dist/litewin_exporter_amd64.exe + _386.exe
 make clean    # remove dist/
 ```
-
-The exporter.c still compiles.
 
 ### Testing
 

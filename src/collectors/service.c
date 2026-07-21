@@ -4,23 +4,15 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Indexed by SERVICE_* state code - 1 (SERVICE_STOPPED..SERVICE_PAUSED). */
 static const char *ALL_STATES[7] = {
-    "continue pending", "pause pending", "paused", "running",
-    "start pending", "stop pending", "stopped"
+    "stopped", "start pending", "stop pending", "running",
+    "continue pending", "pause pending", "paused"
 };
 
 const char *service_state_name(unsigned state)
 {
-    switch (state) {
-    case 1: return "stopped";           /* SERVICE_STOPPED */
-    case 2: return "start pending";     /* SERVICE_START_PENDING */
-    case 3: return "stop pending";      /* SERVICE_STOP_PENDING */
-    case 4: return "running";           /* SERVICE_RUNNING */
-    case 5: return "continue pending";  /* SERVICE_CONTINUE_PENDING */
-    case 6: return "pause pending";     /* SERVICE_PAUSE_PENDING */
-    case 7: return "paused";            /* SERVICE_PAUSED */
-    default: return "unknown";
-    }
+    return (state >= 1 && state <= 7) ? ALL_STATES[state - 1] : "unknown";
 }
 
 void service_emit_states(buf_t *b, const char *name, const char *current)

@@ -44,7 +44,7 @@ int collectors_resolve(collector_t *cols, size_t n, const char *list,
     char *tok, *save = NULL;
     size_t i;
 
-    if (!list || !*list || strcmp(list, "[defaults]") == 0) {
+    if (!list || !*list) { /* a "[defaults]" token is handled in the loop */
         for (i = 0; i < n; i++)
             cols[i].enabled = 1;
         return 1;
