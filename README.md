@@ -27,12 +27,22 @@ Administrator `cmd`/PowerShell).
 
 ### Single host — `install.bat`
 
-From the unzipped bundle:
+From the unzipped bundle, install as a service on the default port (9182):
 
 ```bat
-install.bat                 :: install as a service on the default port (9182)
-install.bat 9100            :: install on a custom port
-install.bat 9100 /defender  :: also add a Windows Defender exclusion for the exe
+install.bat
+```
+
+Pass a port to override the default:
+
+```bat
+install.bat 9100
+```
+
+Add `/defender` to also add a Windows Defender exclusion for the exe:
+
+```bat
+install.bat 9100 /defender
 ```
 
 `install.bat` arch-detects, copies the right exe to
@@ -41,9 +51,11 @@ install.bat 9100 /defender  :: also add a Windows Defender exclusion for the exe
 firewall, and starts it. It is idempotent — re-running upgrades an existing
 install in place.
 
+`uninstall.bat` stops and deletes the service, then removes the firewall rule,
+the Defender exclusion, and the install directory:
+
 ```bat
-uninstall.bat               :: stop + delete service, remove firewall rule,
-                            :: Defender exclusion, and the install directory
+uninstall.bat
 ```
 
 ### Fleet install / upgrade — `install-litewin.ps1`
@@ -53,14 +65,22 @@ downloads a versioned bundle from your fileserver, verifies its checksum, runs
 `install.bat`, and scopes the firewall rule to your Prometheus scraper(s).
 Upgrading the fleet is just bumping `-LitewinVersion`.
 
-```powershell
-# First install: allow scraper 10.20.30.50, verify the .sha256 sidecar
-powershell -ExecutionPolicy Bypass -File install-litewin.ps1 `
-    -ScraperIPs 10.20.30.50 -LitewinVersion 0.1.0 -VerifyChecksum
+First install — replace `<scraper-ip>` with your Prometheus server's IP (e.g.
+`10.20.30.50`); `-VerifyChecksum` checks the zip against its `.sha256` sidecar:
 
-# Later, upgrade the whole fleet: identical command, bumped version
+```powershell
 powershell -ExecutionPolicy Bypass -File install-litewin.ps1 `
-    -ScraperIPs 10.20.30.50 -LitewinVersion 0.2.0 -VerifyChecksum
+    -ScraperIPs <scraper-ip> -LitewinVersion 0.1.0 -VerifyChecksum
+```
+
+To upgrade, run the same command again and change only `-LitewinVersion`
+to the new release (here `0.1.0` → `0.2.0`). The script compares this against
+the installed version and, since it differs, downloads the new zip and
+reinstalls the service:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install-litewin.ps1 `
+    -ScraperIPs <scraper-ip> -LitewinVersion 0.2.0 -VerifyChecksum
 ```
 
 Set `-LitewinBaseUrl` (once, or edit its default at the top of the script) to
@@ -77,10 +97,15 @@ space after each `=`):
 
 ```bat
 sc create litewin_exporter binPath= "\"C:\Path\to\litewin_exporter.exe\" --web.listen-address :9182" start= auto
-sc start   litewin_exporter
-sc query   litewin_exporter
-sc stop    litewin_exporter
-sc delete  litewin_exporter
+```
+
+Then control it with the usual `sc` verbs:
+
+```bat
+sc start litewin_exporter
+sc query litewin_exporter
+sc stop litewin_exporter
+sc delete litewin_exporter
 ```
 
 Run the same exe without the SCM (from a console) and it serves in the
@@ -107,24 +132,47 @@ The Makefile needs `x86_64-w64-mingw32-gcc` and `i686-w64-mingw32-gcc` on
 
 ### Build
 
+Build both exes (`dist/litewin_exporter_amd64.exe` and `_386.exe`):
+
 ```sh
-make          # dist/litewin_exporter_amd64.exe + _386.exe
-make clean    # remove dist/
+make
+```
+
+Remove `dist/` and `build/`:
+
+```sh
+make clean
 ```
 
 ### Testing
 
-Unit-test with **[Unity](https://github.com/ThrowTheSwitch/Unity)**, under `tests/vendor/unity/`.
+Unit-test with **[Unity](https://github.com/ThrowTheSwitch/Unity)**, under
+`tests/vendor/unity/`.
+
+Run the native unit tests:
 
 ```sh
-make -f Makefile.test unit       # unit tests
-make -f Makefile.test contract   # validate a captured /metrics sample's format
-make -f Makefile.test test       # unit + contract
-bash tests/smoke.sh              # run the exe under Wine and probe it
+make -f Makefile.test unit
 ```
 
-`smoke.sh` runs the exe under Wine by default; on real Windows (Git-Bash) it
-runs natively (`RUNNER=""`), which the sync workflow below uses.
+Validate a captured `/metrics` sample's format (the contract test):
+
+```sh
+make -f Makefile.test contract
+```
+
+Run both:
+
+```sh
+make -f Makefile.test test
+```
+
+Run the exe and probe it over HTTP — under Wine by default; on real Windows
+(Git-Bash) it runs natively (`RUNNER=""`), which the sync workflow below uses:
+
+```sh
+bash tests/smoke.sh
+```
 
 ### Continuous dev against a Windows box
 
@@ -133,14 +181,28 @@ pushes the tree (rsync, or tar-over-ssh if the remote has no rsync) to a Windows
 machine, and runs the **native** smoke test there — exercising the actual Win32
 APIs (e.g. real `GlobalMemoryStatusEx` values), no Wine.
 
+Run with no arguments to watch `src/`, `tests/`, and the Makefiles, rebuilding,
+syncing, and smoke-testing on each save:
+
 ```sh
-scripts/sync-win.sh          # watch src/tests/Makefile*; build + sync + smoke on each save
-scripts/sync-win.sh --once   # one build/sync/smoke cycle
-scripts/sync-win.sh serve    # build/sync, then run the exporter live on Windows
+scripts/sync-win.sh
 ```
 
-With `serve`, browse `http://localhost:<port>/metrics` on the Windows box; Ctrl-C
-stops it and kills the remote exe. Override targets via env: `REMOTE` (ssh host,
+Do a single build/sync/smoke cycle, then exit:
+
+```sh
+scripts/sync-win.sh --once
+```
+
+Build and sync, then run the exporter live on the Windows box — browse
+`http://localhost:<port>/metrics` there; Ctrl-C stops it and kills the remote
+exe:
+
+```sh
+scripts/sync-win.sh serve
+```
+
+Override targets via env: `REMOTE` (ssh host,
 default `litewin-win-dev`), `RPATH` (remote dir, Git-Bash form), `PORT` (default
 9183), `BUILD=0` to skip the cross-compile. See the script header for details.
 
