@@ -1,5 +1,6 @@
 #include "pdh_util.h"
 #include "log.h"
+#include "winstr.h"
 
 #include <windows.h>
 #include <pdh.h>
@@ -13,14 +14,6 @@
 
 static PDH_HQUERY g_query;
 static int g_open;
-
-static void w2utf8(const WCHAR *w, char *out, int outsz)
-{
-    int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, out, outsz, NULL, NULL);
-    if (n <= 0 && outsz > 0)
-        out[0] = '\0';
-    out[outsz - 1] = '\0';
-}
 
 int pdh_open(void)
 {
