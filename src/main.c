@@ -7,6 +7,7 @@
 #include "log.h"
 #include "pdh_util.h"
 #include "registry.h"
+#include "svc.h"
 #include "textfmt.h"
 #include "version.h"
 
@@ -109,5 +110,6 @@ int main(int argc, char **argv)
     g_start_time = time(NULL);
     memcpy(&bind_addr, g_cfg.bind_ip, 4); /* already network byte order */
     log_msg("%s %s", LITEWIN_NAME, LITEWIN_VERSION);
-    return http_serve(bind_addr, g_cfg.port, handler);
+    /* Runs under the SCM if launched as a service, else console mode. */
+    return svc_start(bind_addr, g_cfg.port, handler);
 }

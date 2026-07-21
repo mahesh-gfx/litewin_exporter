@@ -1,0 +1,35 @@
+#include <winver.h>
+#include "version.h"
+
+/* Embedded application manifest (asInvoker + OS compatibility). */
+1 24 "litewin.manifest"
+
+/* Version resource: helps AV heuristics and shows in file properties. */
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION    LITEWIN_VER_MAJOR,LITEWIN_VER_MINOR,LITEWIN_VER_PATCH,0
+ PRODUCTVERSION LITEWIN_VER_MAJOR,LITEWIN_VER_MINOR,LITEWIN_VER_PATCH,0
+ FILEFLAGSMASK  0x3fL
+ FILEFLAGS      0x0L
+ FILEOS         0x40004L /* VOS_NT_WINDOWS32 */
+ FILETYPE       0x1L     /* VFT_APP */
+ FILESUBTYPE    0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName",      "litewin_exporter contributors"
+            VALUE "FileDescription",  "Lightweight Windows Prometheus exporter"
+            VALUE "FileVersion",      LITEWIN_VERSION
+            VALUE "InternalName",     "litewin_exporter"
+            VALUE "LegalCopyright",   "MIT License"
+            VALUE "OriginalFilename", "litewin_exporter.exe"
+            VALUE "ProductName",      LITEWIN_NAME
+            VALUE "ProductVersion",   LITEWIN_VERSION
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

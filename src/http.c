@@ -2,10 +2,15 @@
 #include "log.h"
 
 #include <winsock2.h>
+#include <windows.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* Shared with http_stop() so the service control handler can end the loop. */
+static volatile LONG g_stop;
+static SOCKET g_listen_sock = INVALID_SOCKET;
 
 static void send_all(SOCKET s, const char *p, size_t n)
 {
@@ -63,7 +68,6 @@ static void handle_client(SOCKET c, http_handler_fn handler)
 int http_serve(unsigned long bind_addr, int port, http_handler_fn handler)
 {
     WSADATA wsa;
-    SOCKET ls;
     struct sockaddr_in addr;
 
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
@@ -71,8 +75,8 @@ int http_serve(unsigned long bind_addr, int port, http_handler_fn handler)
         return 1;
     }
 
-    ls = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (ls == INVALID_SOCKET) {
+    g_listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (g_listen_sock == INVALID_SOCKET) {
         log_msg("socket() failed");
         return 1;
     }
@@ -81,20 +85,31 @@ int http_serve(unsigned long bind_addr, int port, http_handler_fn handler)
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = bind_addr;
     addr.sin_port = htons((u_short)port);
-    if (bind(ls, (struct sockaddr *)&addr, sizeof addr) == SOCKET_ERROR) {
+    if (bind(g_listen_sock, (struct sockaddr *)&addr, sizeof addr) == SOCKET_ERROR) {
         log_msg("bind(:%d) failed: %d", port, WSAGetLastError());
         return 1;
     }
-    if (listen(ls, 8) == SOCKET_ERROR) {
+    if (listen(g_listen_sock, 8) == SOCKET_ERROR) {
         log_msg("listen failed");
         return 1;
     }
 
     log_msg("listening on :%d", port);
-    for (;;) {
-        SOCKET c = accept(ls, NULL, NULL);
-        if (c == INVALID_SOCKET)
+    while (!g_stop) {
+        SOCKET c = accept(g_listen_sock, NULL, NULL);
+        if (c == INVALID_SOCKET) /* accept fails when http_stop() closes the socket */
             continue;
         handle_client(c, handler);
     }
+    closesocket(g_listen_sock);
+    g_listen_sock = INVALID_SOCKET;
+    WSACleanup();
+    return 0;
+}
+
+void http_stop(void)
+{
+    InterlockedExchange(&g_stop, 1);
+    if (g_listen_sock != INVALID_SOCKET)
+        closesocket(g_listen_sock); /* unblocks the accept() above */
 }
