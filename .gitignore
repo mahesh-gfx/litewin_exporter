@@ -3,3 +3,7 @@ build/
 *.o
 *.exe
 scribble/
+# local perf-report artifacts
+perf-report.md
+*.load
+compare.txt

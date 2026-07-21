@@ -205,6 +205,38 @@ latency):
 scripts/compare-exporters.sh http://<host>:9183/metrics http://<host>:9182/metrics
 ```
 
+#### Perf report
+
+CI runs the whole flow on every push (the `perf` job) and publishes the report
+to the job's step summary and a `perf-report` artifact. To produce the same
+report locally, capture the three outputs, then render.
+
+Load-test litewin and save the log:
+
+```sh
+tests/loadtest.sh http://<host>:9183/metrics 15 200 | tee lw.load
+```
+
+Load-test windows_exporter and save the log:
+
+```sh
+tests/loadtest.sh http://<host>:9182/metrics 15 200 | tee we.load
+```
+
+Save the comparison:
+
+```sh
+scripts/compare-exporters.sh http://<host>:9183/metrics http://<host>:9182/metrics | tee compare.txt
+```
+
+Render the report — `STEP_SECONDS` must match the per-step duration passed to
+`loadtest.sh` above (used for the throughput chart; defaults to 10, the CI
+value):
+
+```sh
+STEP_SECONDS=15 scripts/perf-report.sh lw.load we.load compare.txt > perf-report.md
+```
+
 ### Continuous dev against a Windows box
 
 For real-hardware testing, `scripts/sync-win.sh` cross-compiles on the dev host,

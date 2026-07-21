@@ -55,11 +55,16 @@ echo
 grep -h "^BREAKING POINT\|^no breaking point" "$LW" | sed 's/^/- **litewin**: /'
 grep -h "^BREAKING POINT\|^no breaking point" "$WE" | sed 's/^/- **windows_exporter**: /'
 echo
+# xychart-beta has no legend; pin the plot colours and show a matching key.
+MERMAID_INIT="%%{init: {'theme': 'base', 'themeVariables': {'xyChart': {'plotColorPalette': '#2563eb, #f59e0b'}}}}%%"
+LEGEND="🔵 **litewin**&nbsp;&nbsp;&nbsp;🟠 **windows_exporter**"
+
 echo "## p95 latency vs concurrency"
 echo
-echo "_First line: litewin. Second line: windows_exporter._"
+echo "$LEGEND"
 echo
 echo '```mermaid'
+echo "$MERMAID_INIT"
 echo 'xychart-beta'
 echo '    title "p95 scrape latency (s)"'
 echo "    x-axis \"concurrent scrapers\" [$(head -n "$N" /tmp/perf_lw.$$ | col /dev/stdin 1)]"
@@ -70,9 +75,10 @@ echo '```'
 echo
 echo "## Throughput vs concurrency"
 echo
-echo "_First line: litewin. Second line: windows_exporter._"
+echo "$LEGEND"
 echo
 echo '```mermaid'
+echo "$MERMAID_INIT"
 echo 'xychart-beta'
 echo '    title "successful scrapes per second"'
 echo "    x-axis \"concurrent scrapers\" [$(head -n "$N" /tmp/perf_lw.$$ | col /dev/stdin 1)]"
