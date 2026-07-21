@@ -41,7 +41,7 @@ int collectors_resolve(collector_t *cols, size_t n, const char *list,
                        char *unknown, size_t unknown_sz)
 {
     char copy[512];
-    char *tok, *save = NULL;
+    char *tok;
     size_t i;
 
     if (!list || !*list) { /* a "[defaults]" token is handled in the loop */
@@ -56,7 +56,9 @@ int collectors_resolve(collector_t *cols, size_t n, const char *list,
     strncpy(copy, list, sizeof copy - 1);
     copy[sizeof copy - 1] = '\0';
 
-    for (tok = strtok_r(copy, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
+    /* strtok (not strtok_r): C99-portable, and this startup parse is
+     * single-threaded with no nested tokenizing. */
+    for (tok = strtok(copy, ","); tok; tok = strtok(NULL, ",")) {
         int found = 0;
         while (*tok == ' ')
             tok++;
