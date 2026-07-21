@@ -15,6 +15,13 @@
 static PDH_HQUERY g_query;
 static int g_open;
 
+/* Wine < 10 ships a pdh.dll without PdhGetRawCounterArrayW; a static import
+ * would stop the exe loading there at all. Real Windows (2000+) always has it,
+ * so resolve it at runtime and let array collectors fail soft under old Wine. */
+typedef PDH_STATUS (WINAPI *raw_array_fn)(PDH_HCOUNTER, LPDWORD, LPDWORD,
+                                          PPDH_RAW_COUNTER_ITEM_W);
+static raw_array_fn g_raw_array;
+
 int pdh_open(void)
 {
     if (g_open)
@@ -23,6 +30,12 @@ int pdh_open(void)
         log_msg("error: PdhOpenQueryW failed");
         return 0;
     }
+    /* pdh.dll is already loaded via the static PdhOpenQueryW import. */
+    g_raw_array = (raw_array_fn)(void (*)(void))
+        GetProcAddress(GetModuleHandleW(L"pdh.dll"), "PdhGetRawCounterArrayW");
+    if (!g_raw_array)
+        log_msg("warning: PdhGetRawCounterArrayW unavailable (old Wine?); "
+                "per-instance collectors will report failure");
     g_open = 1;
     return 1;
 }
@@ -69,9 +82,9 @@ int pdh_raw_array(void *counter, pdh_inst_cb cb, void *ctx)
     PDH_RAW_COUNTER_ITEM_W *items;
     PDH_STATUS s;
 
-    if (!c)
+    if (!c || !g_raw_array)
         return 0;
-    s = PdhGetRawCounterArrayW(c, &bufsz, &count, NULL);
+    s = g_raw_array(c, &bufsz, &count, NULL);
     if (s == 0 && count == 0)
         return 1;
     if (s != PDH_MORE_DATA_C)
@@ -80,7 +93,7 @@ int pdh_raw_array(void *counter, pdh_inst_cb cb, void *ctx)
     items = (PDH_RAW_COUNTER_ITEM_W *)malloc(bufsz);
     if (!items)
         return 0;
-    s = PdhGetRawCounterArrayW(c, &bufsz, &count, items);
+    s = g_raw_array(c, &bufsz, &count, items);
     if (s != 0) {
         free(items);
         return 0;

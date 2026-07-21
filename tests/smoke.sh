@@ -23,7 +23,13 @@ run_exe() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' $RUNNER "$EXE" "$@"; }
 export WINEDEBUG="${WINEDEBUG:--all}"
 export WINEPREFIX="${WINEPREFIX:-/tmp/wineprefix}"
 
-fail() { echo "SMOKE FAIL: $*" >&2; cleanup; exit 1; }
+fail() {
+    echo "SMOKE FAIL: $*" >&2
+    # Surface the exporter's own output (CI can't open the log file reference).
+    [ -f /tmp/smoke_exporter.log ] && sed 's/^/  exporter.log: /' /tmp/smoke_exporter.log >&2
+    cleanup
+    exit 1
+}
 cleanup() {
     [ -n "${PID:-}" ] && kill "$PID" 2>/dev/null
     # MSYS `kill` can't stop a native Windows exe; taskkill can. Without this the
@@ -118,6 +124,7 @@ echo "  ok  --collectors.print -> exit 0"
 
 # Optional: save a full scrape for the contract fixture (SAVE_SCRAPE=path).
 if [ -n "${SAVE_SCRAPE:-}" ]; then
+    mkdir -p "$(dirname "$SAVE_SCRAPE")"
     curl -s -m 5 "$BASE/probe" > "$SAVE_SCRAPE" \
         || fail "failed to save scrape to $SAVE_SCRAPE"
     echo "  ok  saved scrape       -> $SAVE_SCRAPE"
