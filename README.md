@@ -174,6 +174,37 @@ Run the exe and probe it over HTTP — under Wine by default; on real Windows
 bash tests/smoke.sh
 ```
 
+### Load testing
+
+`tests/loadtest.sh` simulates many Prometheus instances scraping at once and
+finds the exporter's breaking point. It ramps 1 → 2 → 5 → 10 → 20 → 50 → 100 →
+200 concurrent workers, each scraping back-to-back (far harsher than a real
+scraper's 15–60 s interval), prints scrapes/errors/p50/p95/max per step, and
+stops when a step exceeds 5% errors or 5 s p95 latency. It needs only bash,
+curl, and awk, and runs from any host that can reach the exporter — for a
+remote target, the metrics port must be open in the Windows firewall
+(`install.bat` opens it).
+
+Run against a target with the defaults (15 s per step, ramp up to 50 workers):
+
+```sh
+tests/loadtest.sh http://<host>:9183/metrics
+```
+
+Override the per-step duration (seconds) and maximum concurrency:
+
+```sh
+tests/loadtest.sh http://<host>:9183/metrics 15 200
+```
+
+For a side-by-side quality comparison against a windows_exporter running on
+the same host (family coverage, values that must agree, payload size, scrape
+latency):
+
+```sh
+scripts/compare-exporters.sh http://<host>:9183/metrics http://<host>:9182/metrics
+```
+
 ### Continuous dev against a Windows box
 
 For real-hardware testing, `scripts/sync-win.sh` cross-compiles on the dev host,

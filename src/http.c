@@ -89,7 +89,10 @@ int http_serve(unsigned long bind_addr, int port, http_handler_fn handler)
         log_msg("bind(:%d) failed: %d", port, WSAGetLastError());
         return 1;
     }
-    if (listen(g_listen_sock, 8) == SOCKET_ERROR) {
+    /* SOMAXCONN: measured with backlog 8, >=20 tight-loop scrapers overflowed
+     * the queue and got connection-refused; the stack-sized queue absorbs
+     * bursts while the single service thread drains them. */
+    if (listen(g_listen_sock, SOMAXCONN) == SOCKET_ERROR) {
         log_msg("listen failed");
         return 1;
     }
