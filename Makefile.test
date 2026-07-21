@@ -1,0 +1,48 @@
+# Test targets for litewin_exporter.
+#
+#   make -f Makefile.test unit      unit tests (Unity)
+#   make -f Makefile.test contract  validate a captured /metrics sample's format
+#   make -f Makefile.test test      unit + contract
+#
+# Unit tests build with the HOST gcc (not MinGW): the modules under test are
+# pure C with no windows.h, so they compile and run natively.
+
+CC      ?= gcc
+CFLAGS  := -std=c99 -Wall -Wextra -Werror -Isrc -Itests/vendor/unity
+UNITY   := tests/vendor/unity/unity.c
+BIN     := build/tests
+
+# Each test binary: tests/test_<mod>.c + the module's source (src/ or
+# src/collectors/). Exposition-format tests also need textfmt.c linked; it is
+# added automatically for every module except textfmt itself.
+UNIT_MODULES := config textfmt registry memory cpu strutil net service
+
+.PHONY: test unit contract clean
+test: unit contract
+
+unit:
+	@mkdir -p $(BIN)
+	@set -e; for m in $(UNIT_MODULES); do \
+		echo "== unit: $$m =="; \
+		src=$$(ls src/$$m.c src/collectors/$$m.c 2>/dev/null | head -1); \
+		[ "$$m" = textfmt ] || src="$$src src/textfmt.c"; \
+		$(CC) $(CFLAGS) tests/test_$$m.c $$src $(UNITY) -o $(BIN)/test_$$m; \
+		$(BIN)/test_$$m; \
+	done
+
+# Contract test: parse a captured sample with the official Prometheus
+# text-format parser (python) and/or `promtool check metrics`. Fails on any
+# malformed metric, HELP/TYPE mismatch, or duplicate series. Point SAMPLE at a
+# file captured from a real (or Wine) scrape: `curl -s host:9183/metrics > sample`.
+SAMPLE ?= tests/fixtures/metrics_sample.txt
+
+contract:
+	@if [ ! -f "$(SAMPLE)" ]; then \
+		echo "contract: no sample at $(SAMPLE) — skipping"; \
+	else \
+		python3 tests/validate_exposition.py "$(SAMPLE)" && \
+		{ command -v promtool >/dev/null 2>&1 && promtool check metrics < "$(SAMPLE)" || echo "(promtool not installed; skipped - python check ran)"; } ; \
+	fi
+
+clean:
+	rm -rf $(BIN)

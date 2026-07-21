@@ -1,0 +1,114 @@
+#include "pdh_util.h"
+#include "log.h"
+#include "winstr.h"
+
+#include <windows.h>
+#include <pdh.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* MinGW's pdh.h is sometimes missing these; define defensively. */
+#define PDH_MORE_DATA_C    ((PDH_STATUS)0x800007D2L)
+#define PDH_CSTATUS_OK_C    0x00000000
+#define PDH_CSTATUS_NEWDATA 0x00000001
+
+static PDH_HQUERY g_query;
+static int g_open;
+
+/* Wine < 10 ships a pdh.dll without PdhGetRawCounterArrayW; a static import
+ * would stop the exe loading there at all. Real Windows (2000+) always has it,
+ * so resolve it at runtime and let array collectors fail soft under old Wine. */
+typedef PDH_STATUS (WINAPI *raw_array_fn)(PDH_HCOUNTER, LPDWORD, LPDWORD,
+                                          PPDH_RAW_COUNTER_ITEM_W);
+static raw_array_fn g_raw_array;
+
+int pdh_open(void)
+{
+    if (g_open)
+        return 1;
+    if (PdhOpenQueryW(NULL, 0, &g_query) != 0) {
+        log_msg("error: PdhOpenQueryW failed");
+        return 0;
+    }
+    /* pdh.dll is already loaded via the static PdhOpenQueryW import. */
+    g_raw_array = (raw_array_fn)(void (*)(void))
+        GetProcAddress(GetModuleHandleW(L"pdh.dll"), "PdhGetRawCounterArrayW");
+    if (!g_raw_array)
+        log_msg("warning: PdhGetRawCounterArrayW unavailable (old Wine?); "
+                "per-instance collectors will report failure");
+    g_open = 1;
+    return 1;
+}
+
+void *pdh_add_english(const wchar_t *path)
+{
+    PDH_HCOUNTER h = NULL;
+    PDH_STATUS s;
+    if (!g_open)
+        return NULL;
+    s = PdhAddEnglishCounterW(g_query, path, 0, &h);
+    if (s != 0) {
+        log_msg("warning: PdhAddEnglishCounterW(%ls) failed: 0x%lx", path, (unsigned long)s);
+        return NULL;
+    }
+    return (void *)h;
+}
+
+void pdh_collect(void)
+{
+    if (g_open)
+        PdhCollectQueryData(g_query);
+}
+
+int pdh_raw(void *counter, long long *out)
+{
+    PDH_HCOUNTER c = (PDH_HCOUNTER)counter;
+    DWORD type;
+    PDH_RAW_COUNTER rc;
+    if (!c)
+        return 0;
+    if (PdhGetRawCounterValue(c, &type, &rc) != 0)
+        return 0;
+    if (rc.CStatus != PDH_CSTATUS_OK_C && rc.CStatus != PDH_CSTATUS_NEWDATA)
+        return 0;
+    *out = (long long)rc.FirstValue;
+    return 1;
+}
+
+int pdh_raw_array(void *counter, pdh_inst_cb cb, void *ctx)
+{
+    PDH_HCOUNTER c = (PDH_HCOUNTER)counter;
+    DWORD bufsz = 0, count = 0, i;
+    PDH_RAW_COUNTER_ITEM_W *items;
+    PDH_STATUS s;
+
+    if (!c || !g_raw_array)
+        return 0;
+    s = g_raw_array(c, &bufsz, &count, NULL);
+    if (s == 0 && count == 0)
+        return 1;
+    if (s != PDH_MORE_DATA_C)
+        return 0;
+
+    items = (PDH_RAW_COUNTER_ITEM_W *)malloc(bufsz);
+    if (!items)
+        return 0;
+    s = g_raw_array(c, &bufsz, &count, items);
+    if (s != 0) {
+        free(items);
+        return 0;
+    }
+
+    for (i = 0; i < count; i++) {
+        char name[512];
+        if (items[i].RawValue.CStatus != PDH_CSTATUS_OK_C &&
+            items[i].RawValue.CStatus != PDH_CSTATUS_NEWDATA)
+            continue;
+        w2utf8(items[i].szName, name, sizeof name);
+        if (strcmp(name, "_Total") == 0)
+            continue;
+        cb(name, (long long)items[i].RawValue.FirstValue, ctx);
+    }
+    free(items);
+    return 1;
+}
