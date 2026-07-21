@@ -99,6 +99,13 @@ int http_serve(unsigned long bind_addr, int port, http_handler_fn handler)
         SOCKET c = accept(g_listen_sock, NULL, NULL);
         if (c == INVALID_SOCKET) /* accept fails when http_stop() closes the socket */
             continue;
+        /* Single-threaded: an idle/half-open client must not wedge the loop.
+           Winsock takes the timeout as a DWORD of milliseconds. */
+        {
+            DWORD tmo = 5000;
+            setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tmo, sizeof tmo);
+            setsockopt(c, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tmo, sizeof tmo);
+        }
         handle_client(c, handler);
     }
     closesocket(g_listen_sock);
