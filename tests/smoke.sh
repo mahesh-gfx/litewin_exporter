@@ -22,6 +22,10 @@ fi
 run_exe() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' $RUNNER "$EXE" "$@"; }
 export WINEDEBUG="${WINEDEBUG:--all}"
 export WINEPREFIX="${WINEPREFIX:-/tmp/wineprefix}"
+# Pre-create the prefix: wine refuses to create it itself when its parent
+# (/tmp, root-owned on CI runners) isn't owned by the user; a user-owned
+# existing prefix dir is accepted.
+[ -n "$RUNNER" ] && mkdir -p "$WINEPREFIX"
 
 fail() {
     echo "SMOKE FAIL: $*" >&2
