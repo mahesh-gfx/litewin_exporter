@@ -64,7 +64,7 @@ static int parse_ip4(const char *s, unsigned char out[4])
     return 1;
 }
 
-/* ":9182", "9182" or "ip:9182" */
+/* ":9183", "9183" or "ip:9183" */
 static int set_listen_address(config_t *cfg, const char *v)
 {
     const char *colon = strrchr(v, ':');

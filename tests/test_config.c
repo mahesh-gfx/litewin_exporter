@@ -17,7 +17,7 @@ static void test_defaults(void)
     char *argv[] = {"exe"};
     config_result_t r = config_parse(&cfg, 1, argv);
     TEST_ASSERT_EQUAL(CONFIG_OK, r);
-    TEST_ASSERT_EQUAL_INT(9182, cfg.port);
+    TEST_ASSERT_EQUAL_INT(9183, cfg.port);
     TEST_ASSERT_EQUAL_STRING("/metrics", cfg.metrics_path);
     TEST_ASSERT_EACH_EQUAL_UINT8(0, cfg.bind_ip, 4);
 }

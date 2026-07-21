@@ -9,7 +9,7 @@
 set -u
 
 EXE="${1:-dist/litewin_exporter_amd64.exe}"
-PORT="${2:-9182}"
+PORT="${2:-9183}"
 BASE="http://127.0.0.1:${PORT}"
 
 if [ -z "${RUNNER+set}" ]; then

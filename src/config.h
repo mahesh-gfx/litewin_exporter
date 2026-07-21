@@ -3,10 +3,10 @@
 
 /* Command-line configuration. Pure C, no windows.h — unit-tested natively. */
 
-#define DEFAULT_PORT 9182
+#define DEFAULT_PORT 9183
 
 typedef struct {
-    int port;                   /* listen port (default 9182) */
+    int port;                   /* listen port (default 9183) */
     unsigned char bind_ip[4];   /* IPv4, network byte order; all-zero = all interfaces */
     char metrics_path[128];     /* URL path for metrics (default "/metrics") */
     char collectors_enabled[512]; /* raw --collectors.enabled list; "" = all */

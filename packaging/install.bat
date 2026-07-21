@@ -3,14 +3,14 @@ setlocal EnableExtensions
 REM install.bat - install/upgrade litewin_exporter as a Windows service.
 REM
 REM Usage: install.bat [PORT] [/defender]
-REM   PORT        TCP port for /metrics (default 9182)
+REM   PORT        TCP port for /metrics (default 9183)
 REM   /defender   also add a Windows Defender exclusion for the installed exe
 REM
 REM Run elevated. Must sit next to litewin_exporter_amd64.exe and
 REM litewin_exporter_386.exe (the release bundle). Idempotent: safe to re-run.
 
 set "SVC=litewin_exporter"
-set "PORT=9182"
+set "PORT=9183"
 set "DEFENDER=0"
 set "INSTALLDIR=%ProgramFiles%\litewin_exporter"
 set "EXE=%INSTALLDIR%\litewin_exporter.exe"

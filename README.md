@@ -27,7 +27,7 @@ Administrator `cmd`/PowerShell).
 
 ### Single host — `install.bat`
 
-From the unzipped bundle, install as a service on the default port (9182):
+From the unzipped bundle, install as a service on the default port (9183):
 
 ```bat
 install.bat
@@ -96,7 +96,7 @@ SCM launches it — no install flag needed. Create it yourself (note the require
 space after each `=`):
 
 ```bat
-sc create litewin_exporter binPath= "\"C:\Path\to\litewin_exporter.exe\" --web.listen-address :9182" start= auto
+sc create litewin_exporter binPath= "\"C:\Path\to\litewin_exporter.exe\" --web.listen-address :9183" start= auto
 ```
 
 Then control it with the usual `sc` verbs:
@@ -109,7 +109,7 @@ sc delete litewin_exporter
 ```
 
 Run the same exe without the SCM (from a console) and it serves in the
-foreground instead — handy for a quick check: `litewin_exporter.exe --web.listen-address :9182`.
+foreground instead — handy for a quick check: `litewin_exporter.exe --web.listen-address :9183`.
 
 ## Development
 

@@ -51,7 +51,7 @@
     workflow.)
 
 .PARAMETER LitewinPort
-    TCP /metrics port. Default 9182.
+    TCP /metrics port. Default 9183.
 
 .PARAMETER AllowPing
     Also add a scoped ICMP echo (ping) allow rule for the scraper(s).
@@ -86,7 +86,7 @@ param(
     [switch]$VerifyChecksum,
     [string]$LitewinSha256,
 
-    [int]$LitewinPort = 9182,
+    [int]$LitewinPort = 9183,
     [switch]$AllowPing,
     [switch]$Force
 )
