@@ -72,6 +72,7 @@ jobs:
       - name: Publish bundle to the Release
         uses: softprops/action-gh-release@v2
         with:
+          prerelease: true
           files: |
             litewin_exporter-${{ github.ref_name }}.zip
             SHA256SUMS

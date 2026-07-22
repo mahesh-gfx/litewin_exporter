@@ -53,6 +53,52 @@ jobs:
       - name: Smoke test (HTTP server)
         run: bash tests/smoke.sh dist/litewin_exporter_amd64.exe 9183
 
+  # load test + windows_exporter comparison on a real Windows runner; the
+  # report (tables + charts) lands in the job's step summary and as an
+  # artifact. Absolute numbers are noisy on shared runners — shapes and
+  # error counts are the signal.
+  perf:
+    runs-on: windows-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: exes
+          path: dist
+      - name: Load test both exporters and compare
+        shell: bash
+        env:
+          WINDOWS_EXPORTER_VERSION: 0.31.7
+        run: |
+          set -e
+          curl -sfL -o windows_exporter.exe \
+            "https://github.com/prometheus-community/windows_exporter/releases/download/v${WINDOWS_EXPORTER_VERSION}/windows_exporter-${WINDOWS_EXPORTER_VERSION}-amd64.exe"
+
+          # Same collector set on both, for a fair comparison.
+          ./dist/litewin_exporter_amd64.exe --web.listen-address :9183 > lw.log 2>&1 &
+          ./windows_exporter.exe --web.listen-address :9182 \
+            --collectors.enabled "cpu,logical_disk,memory,net,service,system" > we.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null http://127.0.0.1:9183/metrics &&
+            curl -s -o /dev/null http://127.0.0.1:9182/metrics && break
+            [ "$i" = 30 ] && { echo "exporters not ready"; cat lw.log we.log; exit 1; }
+            sleep 1
+          done
+
+          bash tests/loadtest.sh http://127.0.0.1:9183/metrics 10 100 | tee lw.load
+          bash tests/loadtest.sh http://127.0.0.1:9182/metrics 10 100 | tee we.load
+          bash scripts/compare-exporters.sh \
+            http://127.0.0.1:9183/metrics http://127.0.0.1:9182/metrics | tee compare.txt
+
+          STEP_SECONDS=10 bash scripts/perf-report.sh lw.load we.load compare.txt > perf-report.md
+          cat perf-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-report
+          path: perf-report.md
+
   # native PDH smoke: run the exe on a real Windows runner so the PDH-backed
   # collectors (cpu, logical_disk, net, system) are actually exercised.
   smoke-windows:
